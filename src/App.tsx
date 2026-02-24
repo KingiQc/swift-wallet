@@ -10,9 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import SendMoney from "@/pages/SendMoney";
 import Convert from "@/pages/Convert";
 import Transactions from "@/pages/Transactions";
-import Escrow from "@/pages/Escrow";
-import KYC from "@/pages/KYC";
-import Admin from "@/pages/Admin";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,9 +29,7 @@ const App = () => (
             <Route path="/send" element={<SendMoney />} />
             <Route path="/convert" element={<Convert />} />
             <Route path="/transactions" element={<Transactions />} />
-            <Route path="/escrow" element={<Escrow />} />
-            <Route path="/kyc" element={<KYC />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<NotFound />} />
