@@ -5,16 +5,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Bitcoin, Eye, EyeOff } from "lucide-react";
+import { Bitcoin, Eye, EyeOff, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
+      });
+      if (error) {
+        toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
+        return;
+      }
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -29,19 +48,9 @@ export default function Login() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" placeholder="John" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" placeholder="Doe" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} required />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Cell Number</Label>
-              <Input id="phone" type="tel" placeholder="+234 800 000 0000" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="john@example.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -56,7 +65,9 @@ export default function Login() {
               <Checkbox id="show" checked={showPassword} onCheckedChange={(c) => setShowPassword(!!c)} />
               <Label htmlFor="show" className="text-sm text-muted-foreground cursor-pointer">Show password</Label>
             </div>
-            <Button type="submit" className="w-full h-12 text-base font-semibold glow-primary">Sign In</Button>
+            <Button type="submit" className="w-full h-12 text-base font-semibold glow-primary" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign In"}
+            </Button>
             <p className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
               <Link to="/register" className="text-primary hover:underline font-medium">Create Account</Link>

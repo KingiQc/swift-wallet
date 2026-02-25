@@ -4,27 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Settings as SettingsIcon, User, Bitcoin, Lock, UserCheck, BarChart3,
+  Settings as SettingsIcon, User, Bitcoin, Lock, UserCheck,
   Upload, FileText, CheckCircle2, Clock, AlertCircle, Copy, RefreshCw,
-  Users, History, Shield, FileCheck, XCircle, LogOut
+  LogOut
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── KYC Section ───
-function KYCSection() {
-  const [kycStatus] = useState<"none" | "pending" | "verified" | "rejected">("none");
+function KYCSection({ kycStatus }: { kycStatus: string }) {
   const [idFile, setIdFile] = useState<File | null>(null);
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
 
-  const statusConfig = {
+  const statusConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
     none: { icon: AlertCircle, color: "text-muted-foreground", bg: "bg-muted", label: "Not Submitted" },
     pending: { icon: Clock, color: "text-warning", bg: "bg-warning/10", label: "Under Review" },
     verified: { icon: CheckCircle2, color: "text-success", bg: "bg-success/10", label: "Verified" },
     rejected: { icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/10", label: "Rejected" },
   };
 
-  const status = statusConfig[kycStatus];
+  const status = statusConfig[kycStatus] || statusConfig.none;
   const StatusIcon = status.icon;
 
   return (
@@ -48,7 +49,7 @@ function KYCSection() {
             <CardDescription>Upload your ID and a selfie for verification</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={e => { e.preventDefault(); alert("Connect Lovable Cloud for document upload & review."); }} className="space-y-4">
+            <form onSubmit={e => { e.preventDefault(); }} className="space-y-4">
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><FileText className="h-4 w-4" /> Government ID</Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer" onClick={() => document.getElementById("id-upload")?.click()}>
@@ -78,82 +79,11 @@ function KYCSection() {
   );
 }
 
-// ─── Admin Section ───
-const stats = [
-  { label: "Total Users", value: "0", icon: Users },
-  { label: "Transactions", value: "0", icon: History },
-  { label: "Escrow Active", value: "0", icon: Shield },
-  { label: "KYC Pending", value: "0", icon: FileCheck },
-];
-const recentUsers = [
-  { name: "John Doe", phone: "+2348000001", kyc: "verified", frozen: false },
-  { name: "Jane Smith", phone: "+2348000002", kyc: "pending", frozen: false },
-  { name: "Mike Brown", phone: "+2348000003", kyc: "none", frozen: true },
-];
-const recentEscrow = [
-  { id: "ESC001", from: "John", to: "Mike", amount: "0.05 BTC", status: "pending" },
-  { id: "ESC002", from: "Sarah", to: "Tom", amount: "0.1 BTC", status: "released" },
-];
-
-function AdminSection() {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        {stats.map(stat => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.label} className="card-gradient border-border">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Icon className="h-4 w-4" /><span className="text-xs font-medium">{stat.label}</span>
-                </div>
-                <p className="text-xl font-bold">{stat.value}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      <Card className="card-gradient border-border">
-        <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Users</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {recentUsers.map(user => (
-            <div key={user.phone} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div><p className="text-sm font-medium">{user.name}</p><p className="text-xs text-muted-foreground">{user.phone}</p></div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${user.kyc === "verified" ? "bg-success/10 text-success" : user.kyc === "pending" ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground"}`}>{user.kyc}</span>
-                {user.frozen && <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Frozen</span>}
-                <Button variant="ghost" size="sm" className="h-7 text-xs">{user.frozen ? "Unfreeze" : "Freeze"}</Button>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-      <Card className="card-gradient border-border">
-        <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /> Escrow Queue</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {recentEscrow.map(esc => (
-            <div key={esc.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div><p className="text-sm font-medium">{esc.from} → {esc.to}</p><p className="text-xs text-muted-foreground">{esc.id} · {esc.amount}</p></div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${esc.status === "pending" ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}>{esc.status}</span>
-                {esc.status === "pending" && (
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-success hover:text-success"><CheckCircle2 className="h-3 w-3 mr-1" /> Release</Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"><XCircle className="h-3 w-3 mr-1" /> Refund</Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 // ─── Main Settings Page ───
 export default function Settings() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { profile, signOut } = useAuth();
   const [pin, setPin] = useState(["", "", "", ""]);
   const [newPin, setNewPin] = useState(["", "", "", ""]);
 
@@ -166,6 +96,18 @@ export default function Settings() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  const handleCopyBtc = () => {
+    if (profile?.btc_address) {
+      navigator.clipboard.writeText(profile.btc_address);
+      toast({ title: "Copied!", description: "BTC address copied to clipboard" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -174,10 +116,9 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-4">
+        <TabsList className="w-full grid grid-cols-2 mb-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="kyc">KYC</TabsTrigger>
-          <TabsTrigger value="admin">Admin</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -186,11 +127,11 @@ export default function Settings() {
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><User className="h-5 w-5 text-primary" /> Profile Info</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label className="text-xs text-muted-foreground">First Name</Label><p className="text-sm font-medium">—</p></div>
-                <div className="space-y-1"><Label className="text-xs text-muted-foreground">Last Name</Label><p className="text-sm font-medium">—</p></div>
+                <div className="space-y-1"><Label className="text-xs text-muted-foreground">First Name</Label><p className="text-sm font-medium">{profile?.first_name || "—"}</p></div>
+                <div className="space-y-1"><Label className="text-xs text-muted-foreground">Last Name</Label><p className="text-sm font-medium">{profile?.last_name || "—"}</p></div>
               </div>
-              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Phone Number</Label><p className="text-sm font-medium">—</p></div>
-              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Account Number</Label><p className="text-sm font-medium font-mono">—</p></div>
+              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Phone Number</Label><p className="text-sm font-medium">{profile?.phone || "—"}</p></div>
+              <div className="space-y-1"><Label className="text-xs text-muted-foreground">Default Currency</Label><p className="text-sm font-medium">{profile?.default_currency || "—"}</p></div>
             </CardContent>
           </Card>
 
@@ -199,10 +140,9 @@ export default function Settings() {
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><Bitcoin className="h-5 w-5 text-primary" /> BTC Address</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <p className="text-sm font-mono flex-1 truncate text-muted-foreground">Connect Lovable Cloud to generate</p>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><Copy className="h-4 w-4" /></Button>
+                <p className="text-sm font-mono flex-1 truncate text-muted-foreground">{profile?.btc_address || "—"}</p>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyBtc}><Copy className="h-4 w-4" /></Button>
               </div>
-              <Button variant="secondary" className="w-full gap-2"><RefreshCw className="h-4 w-4" /> Regenerate Address (requires PIN)</Button>
             </CardContent>
           </Card>
 
@@ -210,7 +150,7 @@ export default function Settings() {
           <Card className="card-gradient border-border">
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /> Change PIN</CardTitle></CardHeader>
             <CardContent>
-              <form onSubmit={e => { e.preventDefault(); alert("Connect Lovable Cloud to change PIN."); }} className="space-y-4">
+              <form onSubmit={e => { e.preventDefault(); toast({ title: "PIN change coming soon" }); }} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Current PIN</Label>
                   <div className="flex gap-3 justify-center">
@@ -237,13 +177,12 @@ export default function Settings() {
           </Card>
 
           {/* Sign Out */}
-          <Button variant="ghost" className="w-full gap-2 text-muted-foreground hover:text-foreground" onClick={() => navigate("/login")}>
+          <Button variant="ghost" className="w-full gap-2 text-muted-foreground hover:text-foreground" onClick={handleSignOut}>
             <LogOut className="h-5 w-5" /> Sign Out
           </Button>
         </TabsContent>
 
-        <TabsContent value="kyc"><KYCSection /></TabsContent>
-        <TabsContent value="admin"><AdminSection /></TabsContent>
+        <TabsContent value="kyc"><KYCSection kycStatus={profile?.kyc_status || "none"} /></TabsContent>
       </Tabs>
     </div>
   );

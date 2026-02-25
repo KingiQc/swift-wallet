@@ -6,19 +6,25 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Bitcoin, Eye, EyeOff, Camera, CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react";
+import { Bitcoin, Eye, EyeOff, Camera, CheckCircle2, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { detectCurrencyFromPhone } from "@/lib/phone-country";
+import { useToast } from "@/hooks/use-toast";
 
 type Step = 1 | 2 | 3;
 
 export default function Register() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [faceSteps, setFaceSteps] = useState({ up: false, right: false, left: false, front: false });
   const [pin, setPin] = useState(["", "", "", ""]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const progress = step === 1 ? 33 : step === 2 ? 66 : 100;
+  const detectedCurrency = detectCurrencyFromPhone(form.phone);
 
   const handlePinChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -38,6 +44,54 @@ export default function Register() {
 
   const allFaceStepsDone = Object.values(faceSteps).every(Boolean);
 
+  const handleStep1 = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.password !== form.confirmPassword) {
+      toast({ title: "Passwords don't match", variant: "destructive" });
+      return;
+    }
+    if (form.password.length < 6) {
+      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    setStep(2);
+  };
+
+  const handleCreateAccount = async () => {
+    setIsSubmitting(true);
+    try {
+      const pinCode = pin.join("");
+      const { error } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            first_name: form.firstName,
+            last_name: form.lastName,
+            phone: form.phone,
+            default_currency: detectedCurrency,
+          },
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) {
+        toast({ title: "Registration failed", description: error.message, variant: "destructive" });
+        return;
+      }
+
+      toast({
+        title: "Account created!",
+        description: "Please check your email to verify your account before signing in.",
+      });
+      navigate("/login");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-md card-gradient border-border animate-fade-in">
@@ -55,7 +109,7 @@ export default function Register() {
         </CardHeader>
         <CardContent>
           {step === 1 && (
-            <form onSubmit={e => { e.preventDefault(); setStep(2); }} className="space-y-4">
+            <form onSubmit={handleStep1} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>First Name</Label>
@@ -67,8 +121,17 @@ export default function Register() {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" placeholder="john@example.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
+              </div>
+              <div className="space-y-2">
                 <Label>Cell Number</Label>
                 <Input type="tel" placeholder="+234 800 000 0000" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
+                {form.phone && (
+                  <p className="text-xs text-muted-foreground">
+                    Detected currency: <span className="text-primary font-semibold">{detectedCurrency}</span>
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Password</Label>
@@ -153,11 +216,11 @@ export default function Register() {
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
                 <Button
-                  onClick={() => navigate("/dashboard")}
-                  disabled={pin.some(d => !d)}
+                  onClick={handleCreateAccount}
+                  disabled={pin.some(d => !d) || isSubmitting}
                   className="flex-1 glow-primary"
                 >
-                  Create Account
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Account"}
                 </Button>
               </div>
             </div>

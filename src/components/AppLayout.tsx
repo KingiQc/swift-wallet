@@ -1,6 +1,7 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Send, ArrowLeftRight, History, Bitcoin, Settings } from "lucide-react";
+import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
+import { LayoutDashboard, Send, ArrowLeftRight, History, Bitcoin, Settings, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 const bottomNav = [
   { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -11,6 +12,19 @@ const bottomNav = [
 
 export default function AppLayout() {
   const location = useLocation();
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen w-full">

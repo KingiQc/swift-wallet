@@ -5,19 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft, Bitcoin,
-  ArrowLeftRight, RefreshCw, Send, Shield, Loader2
+  Wallet, TrendingUp, ArrowLeftRight, RefreshCw, Send, Shield, Loader2
 } from "lucide-react";
 import { CURRENCIES, type CurrencyCode } from "@/lib/constants";
 import { Link } from "react-router-dom";
 import { useExchangeRates, getRate } from "@/hooks/use-exchange-rates";
-
-const balances: Record<CurrencyCode, number> = {
-  NGN: 0, USD: 0, EUR: 0, GBP: 0, BTC: 0,
-};
+import { useAuth } from "@/hooks/use-auth";
+import { useWallets } from "@/hooks/use-wallets";
 
 export default function Dashboard() {
-  const { data: rates, isLoading, refetch, isFetching } = useExchangeRates();
+  const { profile } = useAuth();
+  const { data: wallets, isLoading: walletsLoading, refetch: refetchWallets } = useWallets();
+  const { data: rates, isLoading: ratesLoading, refetch: refetchRates, isFetching } = useExchangeRates();
+  const defaultCurrency = (profile?.default_currency as CurrencyCode) || "USD";
   const [fromCurrency, setFromCurrency] = useState<CurrencyCode>("USD");
   const [toCurrency, setToCurrency] = useState<CurrencyCode>("NGN");
   const [convertAmount, setConvertAmount] = useState("");
@@ -25,19 +25,30 @@ export default function Dashboard() {
 
   const handleRefresh = useCallback(async () => {
     setIsPulling(true);
-    await refetch();
+    await Promise.all([refetchRates(), refetchWallets()]);
     setIsPulling(false);
-  }, [refetch]);
+  }, [refetchRates, refetchWallets]);
+
+  const getWalletBalance = (currency: string): number => {
+    return wallets?.find(w => w.currency === currency)?.balance ?? 0;
+  };
+
+  const totalUSD = wallets?.reduce((sum, w) => {
+    const rate = getRate(rates, w.currency as CurrencyCode, "USD");
+    return sum + w.balance * rate;
+  }, 0) ?? 0;
 
   const rate = getRate(rates, fromCurrency, toCurrency);
   const convertedValue = convertAmount && rate ? (parseFloat(convertAmount) * rate).toFixed(toCurrency === "BTC" ? 8 : 2) : "";
+
+  const isLoading = walletsLoading || ratesLoading;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back to VaultX</p>
+          <p className="text-muted-foreground">Welcome back, {profile?.first_name || "User"}</p>
         </div>
         <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isFetching}>
           <RefreshCw className={`h-5 w-5 ${isFetching || isPulling ? "animate-spin" : ""}`} />
@@ -51,8 +62,12 @@ export default function Dashboard() {
             <Wallet className="h-5 w-5" />
             <span className="text-sm font-medium">Total Balance (USD)</span>
           </div>
-          <p className="text-4xl font-bold text-gradient">$0.00</p>
           {isLoading ? (
+            <Skeleton className="h-10 w-48" />
+          ) : (
+            <p className="text-4xl font-bold text-gradient">${totalUSD.toFixed(2)}</p>
+          )}
+          {ratesLoading ? (
             <Skeleton className="h-4 w-48 mt-2" />
           ) : (
             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
@@ -71,9 +86,13 @@ export default function Dashboard() {
                 <span className="text-lg">{CURRENCIES[code].flag}</span>
                 <span className="text-sm font-semibold text-muted-foreground">{code}</span>
               </div>
-              <p className="text-lg font-bold">
-                {CURRENCIES[code].symbol}{code === "BTC" ? balances[code].toFixed(8) : balances[code].toFixed(2)}
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-6 w-20" />
+              ) : (
+                <p className="text-lg font-bold">
+                  {CURRENCIES[code].symbol}{code === "BTC" ? getWalletBalance(code).toFixed(8) : getWalletBalance(code).toFixed(2)}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -137,7 +156,7 @@ export default function Dashboard() {
               </Select>
               <Input readOnly value={convertedValue} placeholder="Converted" className="flex-1" />
             </div>
-            {isLoading ? (
+            {ratesLoading ? (
               <Skeleton className="h-4 w-40 mx-auto" />
             ) : (
               <p className="text-xs text-muted-foreground text-center">
